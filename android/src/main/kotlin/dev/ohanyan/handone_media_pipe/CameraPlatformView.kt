@@ -9,21 +9,24 @@ import io.flutter.plugin.platform.PlatformView
 class CameraPlatformView(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
-    private val factory: CameraPlatformViewFactory
+    private val factory: CameraPlatformViewFactory,
+    private val exerciseType: ExerciseType,
+    private val debug: Boolean
 ) : PlatformView {
 
     private val cameraView: CameraPreviewView = CameraPreviewView(
         context,
         lifecycleOwner,
         factory.getActivity() ?: (lifecycleOwner as? Activity) ?: (context as? Activity),
-        factory
+        factory,
+        exerciseType,
+        debug
     )
 
     override fun getView(): View = cameraView
 
     override fun dispose() {
         factory.unregisterCameraView(cameraView)
-        // Camera will be cleaned up by lifecycle
     }
 }
 

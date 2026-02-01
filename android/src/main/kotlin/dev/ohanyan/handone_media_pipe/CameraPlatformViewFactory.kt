@@ -36,13 +36,14 @@ class CameraPlatformViewFactory(
     }
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
-        // viewId and args are not used but required by PlatformViewFactory interface
-        // Try to get LifecycleOwner from stored value first
+        val exerciseType = parseExerciseType(args)
+        val debug = (args as? Map<*, *>)?.get("debug") as? Boolean ?: false
+        Log.d("CameraPlatformViewFactory", "exerciseType: $exerciseType, debug: $debug")
+
         val owner = lifecycleOwner ?: when (val ctx = context) {
             is LifecycleOwner -> ctx
             is Activity -> ctx as? LifecycleOwner
             else -> {
-                // Try to get Activity from context
                 var currentContext = context
                 var foundActivity: Activity? = null
                 while (currentContext is android.content.ContextWrapper) {
@@ -61,7 +62,20 @@ class CameraPlatformViewFactory(
             throw IllegalStateException("Activity (LifecycleOwner) is not available. Make sure the plugin is properly initialized.")
         }
 
-        return CameraPlatformView(context, owner, this)
+        return CameraPlatformView(context, owner, this, exerciseType, debug)
+    }
+
+    private fun parseExerciseType(args: Any?): ExerciseType {
+        val argsMap = args as? Map<*, *> ?: throw IllegalStateException(
+            "exerciseType parameter is required. Arguments are null. Make sure creationParams are passed to AndroidView."
+        )
+        val exerciseTypeString = argsMap["exerciseType"] as? String ?: throw IllegalStateException(
+            "exerciseType parameter is required. Key 'exerciseType' not found in arguments."
+        )
+        return ExerciseType.fromString(exerciseTypeString)
+            ?: throw IllegalStateException(
+                "exerciseType has invalid value: '$exerciseTypeString'. Valid: openingAndClosingTheFist, wristExtensionAndFlexion, forearmSupinationAndPronation"
+            )
     }
 
     fun registerCameraView(view: CameraPreviewView) {
