@@ -118,7 +118,7 @@ class CameraPreviewView @JvmOverloads constructor(
         addView(previewView)
         addView(overlayView, FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(infoTextView, FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
-            topMargin = 366
+            topMargin = 400
             marginStart = 16
             marginEnd = 16
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
