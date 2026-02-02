@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
@@ -67,6 +68,13 @@ class CameraPreviewView @JvmOverloads constructor(
     private var lastHandResult: HandLandmarkerResult? = null
     private var lastPoseResult: PoseLandmarkerResult? = null
 
+    /** Dimensions of the image passed to MediaPipe (rotated+mirrored to match preview). Used for overlay scale/offset. */
+    @Volatile
+    private var inferenceImageWidth: Int = 1
+
+    @Volatile
+    private var inferenceImageHeight: Int = 1
+
     // Angle state (mirror iOS)
     private var indexFingerTotalAngle: Int? = null
     private var indexFingerTotalMaxAngle: Int? = null
@@ -91,8 +99,7 @@ class CameraPreviewView @JvmOverloads constructor(
 
     private val previewView: PreviewView = PreviewView(context).apply {
         layoutParams = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.MATCH_PARENT
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
         )
         isClickable = false
         isFocusable = false
@@ -118,7 +125,7 @@ class CameraPreviewView @JvmOverloads constructor(
         addView(previewView)
         addView(overlayView, FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(infoTextView, FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
-            topMargin = 400
+            topMargin = 440
             marginStart = 16
             marginEnd = 16
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
@@ -137,8 +144,8 @@ class CameraPreviewView @JvmOverloads constructor(
     override fun onInterceptTouchEvent(ev: android.view.MotionEvent?): Boolean = false
     override fun onTouchEvent(event: android.view.MotionEvent?): Boolean = false
 
-    private fun isEmulator(): Boolean = Build.FINGERPRINT.contains("generic") ||
-        Build.MODEL.contains("Emulator") || Build.MODEL.contains("Android SDK built for x86")
+    private fun isEmulator(): Boolean =
+        Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("Emulator") || Build.MODEL.contains("Android SDK built for x86")
 
     private fun showEmulatorMessage() {
         val textView = TextView(context).apply {
@@ -166,31 +173,21 @@ class CameraPreviewView @JvmOverloads constructor(
             val poseModelPath = getModelPath("pose_landmarker_heavy.task")
             if (handModelPath != null) {
                 val handBaseOptions = BaseOptions.builder().setModelAssetPath(handModelPath).build()
-                val handOptions = HandLandmarker.HandLandmarkerOptions.builder()
-                    .setBaseOptions(handBaseOptions)
-                    .setRunningMode(RunningMode.LIVE_STREAM)
-                    .setNumHands(2)
-                    .setMinHandDetectionConfidence(0.7f)
-                    .setMinHandPresenceConfidence(0.7f)
-                    .setMinTrackingConfidence(0.7f)
-                    .setResultListener { result, image -> onHandResult(result, image) }
-                    .setErrorListener { error: RuntimeException -> Log.e("CameraPreviewView", "Hand error", error) }
-                    .build()
+                val handOptions =
+                    HandLandmarker.HandLandmarkerOptions.builder().setBaseOptions(handBaseOptions).setRunningMode(RunningMode.LIVE_STREAM).setNumHands(2)
+                        .setMinHandDetectionConfidence(0.7f).setMinHandPresenceConfidence(0.7f).setMinTrackingConfidence(0.7f)
+                        .setResultListener { result, image -> onHandResult(result, image) }
+                        .setErrorListener { error: RuntimeException -> Log.e("CameraPreviewView", "Hand error", error) }.build()
                 handLandmarker = HandLandmarker.createFromOptions(context, handOptions)
                 Log.d("CameraPreviewView", "HandLandmarker initialized")
             } else Log.e("CameraPreviewView", "hand_landmarker.task not found")
             if (poseModelPath != null) {
                 val poseBaseOptions = BaseOptions.builder().setModelAssetPath(poseModelPath).build()
-                val poseOptions = PoseLandmarker.PoseLandmarkerOptions.builder()
-                    .setBaseOptions(poseBaseOptions)
-                    .setRunningMode(RunningMode.LIVE_STREAM)
-                    .setNumPoses(1)
-                    .setMinPoseDetectionConfidence(0.6f)
-                    .setMinPosePresenceConfidence(0.6f)
-                    .setMinTrackingConfidence(0.6f)
-                    .setResultListener { result, image -> onPoseResult(result, image) }
-                    .setErrorListener { error: RuntimeException -> Log.e("CameraPreviewView", "Pose error", error) }
-                    .build()
+                val poseOptions =
+                    PoseLandmarker.PoseLandmarkerOptions.builder().setBaseOptions(poseBaseOptions).setRunningMode(RunningMode.LIVE_STREAM).setNumPoses(1)
+                        .setMinPoseDetectionConfidence(0.6f).setMinPosePresenceConfidence(0.6f).setMinTrackingConfidence(0.6f)
+                        .setResultListener { result, image -> onPoseResult(result, image) }
+                        .setErrorListener { error: RuntimeException -> Log.e("CameraPreviewView", "Pose error", error) }.build()
                 poseLandmarker = PoseLandmarker.createFromOptions(context, poseOptions)
                 Log.d("CameraPreviewView", "PoseLandmarker initialized")
             } else Log.e("CameraPreviewView", "pose_landmarker_heavy.task not found")
@@ -213,6 +210,7 @@ class CameraPreviewView @JvmOverloads constructor(
     private fun onHandResult(result: HandLandmarkerResult, image: MPImage) {
         handResult = result
         lastHandResult = result
+        post { overlayView.invalidate() }
         if (result.landmarks().isNotEmpty() && result.landmarks()[0].size > 20) {
             processHandLandmarks(result)
         }
@@ -221,6 +219,7 @@ class CameraPreviewView @JvmOverloads constructor(
     private fun onPoseResult(result: PoseLandmarkerResult, image: MPImage) {
         poseResult = result
         lastPoseResult = result
+        post { overlayView.invalidate() }
     }
 
     private fun processHandLandmarks(result: HandLandmarkerResult) {
@@ -335,27 +334,25 @@ class CameraPreviewView @JvmOverloads constructor(
             ExerciseType.FOREARM_SUPINATION_AND_PRONATION -> "Forearm supination and pronation"
         }
         val rows = when (exerciseType) {
-            ExerciseType.OPENING_AND_CLOSING_THE_FIST -> listOf(
-                "Index: ${indexFingerTotalAngle?.let { "$it°" } ?: "-"}, min: ${indexFingerTotalMinAngle?.let { "$it°" } ?: "-"}, max: ${indexFingerTotalMaxAngle?.let { "$it°" } ?: "-"}",
+            ExerciseType.OPENING_AND_CLOSING_THE_FIST -> listOf("Index: ${indexFingerTotalAngle?.let { "$it°" } ?: "-"}, min: ${indexFingerTotalMinAngle?.let { "$it°" } ?: "-"}, max: ${indexFingerTotalMaxAngle?.let { "$it°" } ?: "-"}",
                 "Middle: ${middleFingerTotalAngle?.let { "$it°" } ?: "-"}, min: ${middleFingerTotalMinAngle?.let { "$it°" } ?: "-"}, max: ${middleFingerTotalMaxAngle?.let { "$it°" } ?: "-"}",
                 "Ring: ${ringFingerTotalAngle?.let { "$it°" } ?: "-"}, min: ${ringFingerTotalMinAngle?.let { "$it°" } ?: "-"}, max: ${ringFingerTotalMaxAngle?.let { "$it°" } ?: "-"}",
-                "Pinky: ${pinkyTotalAngle?.let { "$it°" } ?: "-"}, min: ${pinkyTotalMinAngle?.let { "$it°" } ?: "-"}, max: ${pinkyTotalMaxAngle?.let { "$it°" } ?: "-"}"
-            )
-            ExerciseType.WRIST_EXTENSION_AND_FLEXION -> listOf(
-                "Flexion: ${flexionAngle?.let { "$it°" } ?: "-"}, max: ${flexionMaxAngle?.let { "$it°" } ?: "-"}",
-                "Extension: ${extensionAngle?.let { "$it°" } ?: "-"}, max: ${extensionMaxAngle?.let { "$it°" } ?: "-"}"
-            )
-            ExerciseType.FOREARM_SUPINATION_AND_PRONATION -> listOf(
-                "Supination: ${supinationAngle?.let { "$it°" } ?: "-"}, max: ${supinationMaxAngle?.let { "$it°" } ?: "-"}",
-                "Pronation: ${pronationAngle?.let { "$it°" } ?: "-"}, max: ${pronationMaxAngle?.let { "$it°" } ?: "-"}"
-            )
+                "Pinky: ${pinkyTotalAngle?.let { "$it°" } ?: "-"}, min: ${pinkyTotalMinAngle?.let { "$it°" } ?: "-"}, max: ${pinkyTotalMaxAngle?.let { "$it°" } ?: "-"}")
+
+            ExerciseType.WRIST_EXTENSION_AND_FLEXION -> listOf("Flexion: ${flexionAngle?.let { "$it°" } ?: "-"}, max: ${flexionMaxAngle?.let { "$it°" } ?: "-"}",
+                "Extension: ${extensionAngle?.let { "$it°" } ?: "-"}, max: ${extensionMaxAngle?.let { "$it°" } ?: "-"}")
+
+            ExerciseType.FOREARM_SUPINATION_AND_PRONATION -> listOf("Supination: ${supinationAngle?.let { "$it°" } ?: "-"}, max: ${supinationMaxAngle?.let { "$it°" } ?: "-"}",
+                "Pronation: ${pronationAngle?.let { "$it°" } ?: "-"}, max: ${pronationMaxAngle?.let { "$it°" } ?: "-"}")
         }
         infoTextView.text = "Type: $typeTitle\n${rows.joinToString("\n")}"
     }
 
     private fun calculateYZAngle(a: NormalizedLandmark, b: NormalizedLandmark, c: NormalizedLandmark): Double {
-        val v1x = a.y() - b.y(); val v1z = a.z() - b.z()
-        val v2x = c.y() - b.y(); val v2z = c.z() - b.z()
+        val v1x = a.y() - b.y();
+        val v1z = a.z() - b.z()
+        val v2x = c.y() - b.y();
+        val v2z = c.z() - b.z()
         val dot = v1x * v2x + v1z * v2z
         val m1 = sqrt((v1x * v1x + v1z * v1z).toDouble())
         val m2 = sqrt((v2x * v2x + v2z * v2z).toDouble())
@@ -365,8 +362,10 @@ class CameraPreviewView @JvmOverloads constructor(
     }
 
     private fun calculateXYAngle(a: NormalizedLandmark, b: NormalizedLandmark, c: NormalizedLandmark): Double {
-        val v1x = a.x() - b.x(); val v1y = a.y() - b.y()
-        val v2x = c.x() - b.x(); val v2y = c.y() - b.y()
+        val v1x = a.x() - b.x();
+        val v1y = a.y() - b.y()
+        val v2x = c.x() - b.x();
+        val v2y = c.y() - b.y()
         val dot = v1x * v2x + v1y * v2y
         val m1 = sqrt((v1x * v1x + v1y * v1y).toDouble())
         val m2 = sqrt((v2x * v2x + v2y * v2y).toDouble())
@@ -376,8 +375,12 @@ class CameraPreviewView @JvmOverloads constructor(
     }
 
     private fun calculate3DAngle(a: NormalizedLandmark, b: NormalizedLandmark, cx: Float, cy: Float, cz: Float): Double {
-        val v1x = a.x() - b.x(); val v1y = a.y() - b.y(); val v1z = a.z() - b.z()
-        val v2x = cx - b.x(); val v2y = cy - b.y(); val v2z = cz - b.z()
+        val v1x = a.x() - b.x();
+        val v1y = a.y() - b.y();
+        val v1z = a.z() - b.z()
+        val v2x = cx - b.x();
+        val v2y = cy - b.y();
+        val v2z = cz - b.z()
         val dot = v1x * v2x + v1y * v2y + v1z * v2z
         val m1 = sqrt((v1x * v1x + v1y * v1y + v1z * v1z).toDouble())
         val m2 = sqrt((v2x * v2x + v2y * v2y + v2z * v2z).toDouble())
@@ -386,8 +389,9 @@ class CameraPreviewView @JvmOverloads constructor(
         return Math.toDegrees(acos(cosT))
     }
 
-    private fun calculateFingerTotalAngle(wrist: NormalizedLandmark, mcp: NormalizedLandmark, pip: NormalizedLandmark, dip: NormalizedLandmark, tip: NormalizedLandmark): Double =
-        calculateYZAngle(wrist, mcp, pip) + calculateYZAngle(mcp, pip, dip) + calculateYZAngle(pip, dip, tip)
+    private fun calculateFingerTotalAngle(
+        wrist: NormalizedLandmark, mcp: NormalizedLandmark, pip: NormalizedLandmark, dip: NormalizedLandmark, tip: NormalizedLandmark
+    ): Double = calculateYZAngle(wrist, mcp, pip) + calculateYZAngle(mcp, pip, dip) + calculateYZAngle(pip, dip, tip)
 
     private fun requestCameraPermission() {
         val act = activity ?: factory?.getActivity() ?: (lifecycleOwner as? Activity) ?: (context as? Activity)
@@ -426,11 +430,8 @@ class CameraPreviewView @JvmOverloads constructor(
                 val cameraSelector = CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_FRONT).build()
                 previewView.post {
                     preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
-                    val imageAnalysis = ImageAnalysis.Builder()
-                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
-                        .build()
-                        .also {
+                    val imageAnalysis = ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888).build().also {
                             it.setAnalyzer(ContextCompat.getMainExecutor(context)) { imageProxy ->
                                 processImage(imageProxy)
                             }
@@ -458,14 +459,16 @@ class CameraPreviewView @JvmOverloads constructor(
             imageProxy.close()
             return
         }
-        val bitmap = imageProxy.toBitmap()
-        if (bitmap == null) {
+        val rotatedBitmap = imageProxy.toRotatedBitmapForInference()
+        if (rotatedBitmap == null) {
             imageProxy.close()
             return
         }
+        inferenceImageWidth = rotatedBitmap.width
+        inferenceImageHeight = rotatedBitmap.height
         timestamp += 1
         try {
-            val mpImage = BitmapImageBuilder(bitmap).build()
+            val mpImage = BitmapImageBuilder(rotatedBitmap).build()
             handLandmarker?.detectAsync(mpImage, timestamp)
             poseLandmarker?.detectAsync(mpImage, timestamp)
         } catch (e: Exception) {
@@ -474,18 +477,34 @@ class CameraPreviewView @JvmOverloads constructor(
         imageProxy.close()
     }
 
-    private fun ImageProxy.toBitmap(): android.graphics.Bitmap? {
+    /**
+     * Converts ImageProxy to a bitmap rotated and mirrored to match the preview (MediaPipe official approach).
+     * Landmarks will be in the same coordinate system as this image, so overlay can use simple scale+offset.
+     */
+    private fun ImageProxy.toRotatedBitmapForInference(): android.graphics.Bitmap? {
         return try {
-            val plane = planes[0]
-            val buffer = plane.buffer
-            val pixelStride = plane.pixelStride
-            val rowStride = plane.rowStride
-            val rowPadding = rowStride - pixelStride * width
-            val bitmap = android.graphics.Bitmap.createBitmap(width + rowPadding / pixelStride, height, android.graphics.Bitmap.Config.ARGB_8888)
-            bitmap.copyPixelsFromBuffer(buffer)
-            if (rowPadding == 0) bitmap else android.graphics.Bitmap.createBitmap(bitmap, 0, 0, width, height)
+            val sourceBitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+            sourceBitmap.copyPixelsFromBuffer(planes[0].buffer)
+            val rotationMatrix = Matrix().apply {
+                postRotate(imageInfo.rotationDegrees.toFloat())
+            }
+            val rotatedBitmap = android.graphics.Bitmap.createBitmap(
+                sourceBitmap, 0, 0, sourceBitmap.width, sourceBitmap.height, rotationMatrix, true
+            )
+            if (rotatedBitmap != sourceBitmap) sourceBitmap.recycle()
+            val isFrontCamera = true
+            val result = if (isFrontCamera) {
+                val flipMatrix = Matrix().apply {
+                    postScale(-1f, 1f, rotatedBitmap.width / 2f, rotatedBitmap.height / 2f)
+                }
+                android.graphics.Bitmap.createBitmap(
+                    rotatedBitmap, 0, 0, rotatedBitmap.width, rotatedBitmap.height, flipMatrix, true
+                )
+            } else rotatedBitmap
+            if (result != rotatedBitmap) rotatedBitmap.recycle()
+            result
         } catch (e: Exception) {
-            Log.e("CameraPreviewView", "toBitmap failed", e)
+            Log.e("CameraPreviewView", "toRotatedBitmapForInference failed", e)
             null
         }
     }
@@ -501,37 +520,90 @@ class CameraPreviewView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Overlay that draws hand and pose landmarks the same way (MediaPipe official approach):
+     * Landmarks are in normalized coords (0–1) of the inference image (rotated+mirrored to match preview).
+     * Scale and offset match PreviewView FILL mode so the skeleton sits on the real hand/body.
+     */
     inner class LandmarkOverlayView(context: Context) : android.view.View(context) {
-        private val paint = Paint().apply {
+        private val connectionPaint = Paint().apply {
             color = Color.GREEN
             style = Paint.Style.STROKE
             strokeWidth = 4f
             isAntiAlias = true
         }
+        private val pointPaint = Paint().apply {
+            color = Color.GREEN
+            style = Paint.Style.FILL
+            isAntiAlias = true
+        }
+
+        /** MediaPipe hand connections (21 landmarks): thumb, index, middle, ring, pinky, palm. */
+        private val handConnections = listOf(
+            0 to 1, 1 to 2, 2 to 3, 3 to 4, 0 to 5, 5 to 6, 6 to 7, 7 to 8,
+            0 to 9, 9 to 10, 10 to 11, 11 to 12, 0 to 13, 13 to 14, 14 to 15, 15 to 16,
+            0 to 17, 17 to 18, 18 to 19, 19 to 20, 5 to 9, 9 to 13, 13 to 17
+        )
+
+        /** MediaPipe pose connections (33 landmarks): face, arms, torso, legs. */
+        private val poseConnections = listOf(
+            0 to 1, 1 to 2, 2 to 3, 3 to 7, 0 to 4, 4 to 5, 5 to 6, 6 to 8, 9 to 10,
+            11 to 12, 11 to 13, 13 to 15, 15 to 17, 15 to 19, 15 to 21, 17 to 19,
+            12 to 14, 14 to 16, 16 to 18, 16 to 20, 16 to 22, 18 to 20,
+            11 to 23, 12 to 24, 23 to 24,
+            23 to 25, 25 to 27, 27 to 29, 27 to 31,
+            24 to 26, 26 to 28, 28 to 30, 28 to 32
+        )
+
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
-            val hand = lastHandResult?.landmarks()?.getOrNull(0) ?: return
-            if (hand.size < 21) return
-            val w = width.toFloat()
-            val h = height.toFloat()
-            val path = Path()
-            val connections = listOf(
-                0 to 1, 1 to 2, 2 to 3, 3 to 4, 0 to 5, 5 to 6, 6 to 7, 7 to 8, 0 to 9, 9 to 10, 10 to 11, 11 to 12,
-                0 to 13, 13 to 14, 14 to 15, 15 to 16, 0 to 17, 17 to 18, 18 to 19, 19 to 20, 5 to 9, 9 to 13, 13 to 17
-            )
-            for ((s, e) in connections) {
-                if (s >= hand.size || e >= hand.size) continue
-                val start = hand[s]
-                val end = hand[e]
-                path.moveTo(start.x() * w, start.y() * h)
-                path.lineTo(end.x() * w, end.y() * h)
+            val imageW = inferenceImageWidth.coerceAtLeast(1)
+            val imageH = inferenceImageHeight.coerceAtLeast(1)
+            val viewW = width.toFloat()
+            val viewH = height.toFloat()
+            val scaleFactor = max(viewW / imageW, viewH / imageH)
+            val offsetX = (viewW - imageW * scaleFactor) / 2f
+            val offsetY = (viewH - imageH * scaleFactor) / 2f
+//            drawLandmarks(canvas, lastPoseResult?.landmarks(), poseConnections, 33, imageW, imageH, scaleFactor, offsetX, offsetY)
+//            drawLandmarks(canvas, lastHandResult?.landmarks(), handConnections, 21, imageW, imageH, scaleFactor, offsetX, offsetY)
+        }
+
+        /** Draws connections and points for hand or pose landmarks (same style and logic). */
+        private fun drawLandmarks(
+            canvas: Canvas,
+            landmarkLists: List<HandLandmarks>?,
+            connections: List<Pair<Int, Int>>,
+            minSize: Int,
+            imageW: Int,
+            imageH: Int,
+            scaleFactor: Float,
+            offsetX: Float,
+            offsetY: Float
+        ) {
+            if (landmarkLists == null) return
+            val w = imageW.toFloat()
+            val h = imageH.toFloat()
+            for (landmarks in landmarkLists) {
+                if (landmarks.size < minSize) continue
+                val path = Path()
+                for ((startIdx, endIdx) in connections) {
+                    if (startIdx >= landmarks.size || endIdx >= landmarks.size) continue
+                    val start = landmarks[startIdx]
+                    val end = landmarks[endIdx]
+                    val sx = offsetX + start.x() * w * scaleFactor
+                    val sy = offsetY + start.y() * h * scaleFactor
+                    val ex = offsetX + end.x() * w * scaleFactor
+                    val ey = offsetY + end.y() * h * scaleFactor
+                    path.moveTo(sx, sy)
+                    path.lineTo(ex, ey)
+                }
+                canvas.drawPath(path, connectionPaint)
+                for (lm in landmarks) {
+                    val px = offsetX + lm.x() * w * scaleFactor
+                    val py = offsetY + lm.y() * h * scaleFactor
+                    canvas.drawCircle(px, py, 6f, pointPaint)
+                }
             }
-            canvas.drawPath(path, paint)
-            paint.style = Paint.Style.FILL
-            for (lm in hand) {
-                canvas.drawCircle(lm.x() * w, lm.y() * h, 6f, paint)
-            }
-            paint.style = Paint.Style.STROKE
         }
     }
 }
