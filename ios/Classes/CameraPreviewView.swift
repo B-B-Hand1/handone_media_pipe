@@ -793,18 +793,19 @@ extension CameraPreviewView: HandLandmarkerLiveStreamDelegate {
                 }
             } else if exerciseType == .forearmSupinationAndPronation {
                 let pinkyMcp = firstHand[17]
-                let thumbMcp = firstHand[2]
-                let thumbMcpZeroZ = NormalizedLandmark(
-                    x: thumbMcp.x,
-                    y: thumbMcp.y,
+                let indexFingerMcp = firstHand[5]
+                let indexFingerMcpZeroZ = NormalizedLandmark(
+                    x: indexFingerMcp.x,
+                    y: indexFingerMcp.y,
                     z: 0,
                     visibility:
-                    thumbMcp.visibility,
-                    presence: thumbMcp.presence
+                    indexFingerMcp.visibility,
+                    presence: indexFingerMcp.presence
                 )
-                let angle = abs(90 - Int(calculate3DAngle(a: pinkyMcp, b: thumbMcp, c: thumbMcpZeroZ).rounded()))
+                let angle = min(90, Int(calculate3DAngle(a: pinkyMcp, b: indexFingerMcp, c: indexFingerMcpZeroZ).rounded()))
                 var data: [String: Any] = [:]
-                if thumbMcp.z > pinkyMcp.z {
+                var handedness = result.handedness.first?.first?.categoryName
+                if pinkyMcp.x < indexFingerMcp.x && handedness == "Left" || pinkyMcp.x > indexFingerMcp.x && handedness == "Right" {
                     self.supinationAngle = angle
                     self.supinationMaxAngle = max(self.supinationMaxAngle ?? 0, angle)
                     self.pronationAngle = nil

@@ -229,7 +229,7 @@ class CameraPreviewView @JvmOverloads constructor(
         when (exerciseType) {
             ExerciseType.OPENING_AND_CLOSING_THE_FIST -> processOpeningAndClosingTheFist(firstHand, wrist)
             ExerciseType.WRIST_EXTENSION_AND_FLEXION -> processWristExtensionAndFlexion(firstHand, result, wrist)
-            ExerciseType.FOREARM_SUPINATION_AND_PRONATION -> processForearmSupinationAndPronation(firstHand)
+            ExerciseType.FOREARM_SUPINATION_AND_PRONATION -> processForearmSupinationAndPronation(firstHand, result)
         }
         post { updateInfoText() }
     }
@@ -298,12 +298,13 @@ class CameraPreviewView @JvmOverloads constructor(
         }
     }
 
-    private fun processForearmSupinationAndPronation(hand: HandLandmarks) {
+    private fun processForearmSupinationAndPronation(hand: HandLandmarks, result: HandLandmarkerResult) {
         val pinkyMcp = hand[17]
-        val thumbMcp = hand[2]
-        val angle = kotlin.math.abs(90 - calculate3DAngle(pinkyMcp, thumbMcp, thumbMcp.x(), thumbMcp.y(), 0f).toInt())
+        val indexFingerMcp = hand[5]
+        val angle = min(90, calculate3DAngle(pinkyMcp, indexFingerMcp, indexFingerMcp.x(), indexFingerMcp.y(), 0f).toInt())
         val data = mutableMapOf<String, Any>()
-        if (thumbMcp.z() > pinkyMcp.z()) {
+        var handedness = result.handednesses().getOrNull(0)?.getOrNull(0)?.categoryName() ?: "Right"
+        if (pinkyMcp.x() < indexFingerMcp.x() && handedness == "Left" || pinkyMcp.x() > indexFingerMcp.x() && handedness == "Right") {
             supinationAngle = angle
             supinationMaxAngle = max(supinationMaxAngle ?: 0, angle)
             pronationAngle = null
