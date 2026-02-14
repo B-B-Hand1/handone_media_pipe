@@ -483,11 +483,17 @@ class CameraPreviewView: UIView {
     }
 
     /// Calculates the total angle of a finger by summing the angles at MCP, PIP, and DIP joints.
-    private func calculateFingerTotalAngle(wrist: NormalizedLandmark, mcp: NormalizedLandmark, pip: NormalizedLandmark, dip: NormalizedLandmark, tip: NormalizedLandmark) -> Double {
-        let mcpAngle = calculateYZAngle(a: wrist, b: mcp, c: pip)
+    private func calculateFingerTotalAngle(wrist: NormalizedLandmark, mcp: NormalizedLandmark, pip: NormalizedLandmark, dip: NormalizedLandmark, tip: NormalizedLandmark, correct: Bool = false) -> Double {
+        var mcpAngle = calculateYZAngle(a: wrist, b: mcp, c: pip)
+        if correct && mcpAngle > 90 && mcpAngle < 180 {
+            mcpAngle = mcpAngle * (mcpAngle / 300 + 0.4 )
+        }
         let pipAngle = calculateYZAngle(a: mcp, b: pip, c: dip)
-        let dipAngle = calculateYZAngle(a: pip, b: dip, c: tip)
-        return mcpAngle + pipAngle + dipAngle
+        var dipAngle = calculateYZAngle(a: pip, b: dip, c: tip)
+        if correct && dipAngle > 90 && dipAngle < 180 {
+            dipAngle = dipAngle * (dipAngle / 300 + 0.4 )
+        }
+        return min(mcpAngle, 180) + min(pipAngle, 180) + min(dipAngle, 180)
     }
 
     // MARK: - Landmark Drawing
@@ -646,7 +652,7 @@ extension CameraPreviewView: HandLandmarkerLiveStreamDelegate {
 
             if exerciseType == .openingAndClosingTheFist {
                 // Index finger: 5, 6, 7, 8
-                let indexAngle = Int(calculateFingerTotalAngle(wrist: wrist, mcp: firstHand[5], pip: firstHand[6], dip: firstHand[7], tip: firstHand[8]).rounded())
+                let indexAngle = Int(calculateFingerTotalAngle(wrist: wrist, mcp: firstHand[5], pip: firstHand[6], dip: firstHand[7], tip: firstHand[8], correct: true).rounded())
                 self.indexFingerTotalAngle = indexAngle
 
                 // Middle finger: 9, 10, 11, 12
