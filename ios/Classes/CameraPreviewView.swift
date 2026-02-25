@@ -484,16 +484,19 @@ class CameraPreviewView: UIView {
 
     /// Calculates the total angle of a finger by summing the angles at MCP, PIP, and DIP joints.
     private func calculateFingerTotalAngle(wrist: NormalizedLandmark, mcp: NormalizedLandmark, pip: NormalizedLandmark, dip: NormalizedLandmark, tip: NormalizedLandmark, correct: Bool = false) -> Double {
-        var mcpAngle = calculateYZAngle(a: wrist, b: mcp, c: pip)
+        var mcpAngle = calculate3DAngle(a: wrist, b: mcp, c: pip)
         if correct && mcpAngle > 90 && mcpAngle < 180 {
-            mcpAngle = mcpAngle * (mcpAngle / 300 + 0.4 )
+            mcpAngle = mcpAngle * (mcpAngle / 250 + 0.34 )
         }
-        let pipAngle = calculateYZAngle(a: mcp, b: pip, c: dip)
-        var dipAngle = calculateYZAngle(a: pip, b: dip, c: tip)
+        var pipAngle = calculate3DAngle(a: mcp, b: pip, c: dip)
+        if correct && pipAngle > 90 && pipAngle < 180 {
+            pipAngle = pipAngle * (pipAngle / 250 + 0.34 )
+        }
+        var dipAngle = calculate3DAngle(a: pip, b: dip, c: tip)
         if correct && dipAngle > 90 && dipAngle < 180 {
-            dipAngle = dipAngle * (dipAngle / 300 + 0.4 )
+            dipAngle = dipAngle * (dipAngle / 250 + 0.34 )
         }
-        return min(mcpAngle, 180) + min(pipAngle, 180) + min(dipAngle, 180)
+        return max(min(mcpAngle, 185), 85) + max(min(pipAngle, 185), 85) + max(min(dipAngle, 185), 85)
     }
 
     // MARK: - Landmark Drawing
@@ -656,15 +659,15 @@ extension CameraPreviewView: HandLandmarkerLiveStreamDelegate {
                 self.indexFingerTotalAngle = indexAngle
 
                 // Middle finger: 9, 10, 11, 12
-                let middleAngle = Int(calculateFingerTotalAngle(wrist: wrist, mcp: firstHand[9], pip: firstHand[10], dip: firstHand[11], tip: firstHand[12]).rounded())
+                let middleAngle = Int(calculateFingerTotalAngle(wrist: wrist, mcp: firstHand[9], pip: firstHand[10], dip: firstHand[11], tip: firstHand[12], correct: true).rounded())
                 self.middleFingerTotalAngle = middleAngle
 
                 // Ring finger: 13, 14, 15, 16
-                let ringAngle = Int(calculateFingerTotalAngle(wrist: wrist, mcp: firstHand[13], pip: firstHand[14], dip: firstHand[15], tip: firstHand[16]).rounded())
+                let ringAngle = Int(calculateFingerTotalAngle(wrist: wrist, mcp: firstHand[13], pip: firstHand[14], dip: firstHand[15], tip: firstHand[16], correct: true).rounded())
                 self.ringFingerTotalAngle = ringAngle
 
                 // Pinky: 17, 18, 19, 20
-                let pinkyAngle = Int(calculateFingerTotalAngle(wrist: wrist, mcp: firstHand[17], pip: firstHand[18], dip: firstHand[19], tip: firstHand[20]).rounded())
+                let pinkyAngle = Int(calculateFingerTotalAngle(wrist: wrist, mcp: firstHand[17], pip: firstHand[18], dip: firstHand[19], tip: firstHand[20], correct: true).rounded())
                 self.pinkyTotalAngle = pinkyAngle
 
                 var data: [String: Any] = [:]

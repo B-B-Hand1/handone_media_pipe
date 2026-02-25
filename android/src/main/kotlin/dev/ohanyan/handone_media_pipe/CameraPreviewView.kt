@@ -236,9 +236,9 @@ class CameraPreviewView @JvmOverloads constructor(
 
     private fun processOpeningAndClosingTheFist(hand: HandLandmarks, wrist: NormalizedLandmark) {
         val indexAngle = calculateFingerTotalAngle(wrist, hand[5], hand[6], hand[7], hand[8], true).toInt()
-        val middleAngle = calculateFingerTotalAngle(wrist, hand[9], hand[10], hand[11], hand[12]).toInt()
-        val ringAngle = calculateFingerTotalAngle(wrist, hand[13], hand[14], hand[15], hand[16]).toInt()
-        val pinkyAngle = calculateFingerTotalAngle(wrist, hand[17], hand[18], hand[19], hand[20]).toInt()
+        val middleAngle = calculateFingerTotalAngle(wrist, hand[9], hand[10], hand[11], hand[12], true).toInt()
+        val ringAngle = calculateFingerTotalAngle(wrist, hand[13], hand[14], hand[15], hand[16], true).toInt()
+        val pinkyAngle = calculateFingerTotalAngle(wrist, hand[17], hand[18], hand[19], hand[20], true).toInt()
         indexFingerTotalAngle = indexAngle
         middleFingerTotalAngle = middleAngle
         ringFingerTotalAngle = ringAngle
@@ -301,7 +301,7 @@ class CameraPreviewView @JvmOverloads constructor(
     private fun processForearmSupinationAndPronation(hand: HandLandmarks, result: HandLandmarkerResult) {
         val pinkyMcp = hand[17]
         val indexFingerMcp = hand[5]
-        val angle = min(90, calculate3DAngle(pinkyMcp, indexFingerMcp, indexFingerMcp.x(), indexFingerMcp.y(), 0f).toInt())
+        val angle = min(90, calculate3DAngle(pinkyMcp, indexFingerMcp, NormalizedLandmark.create(indexFingerMcp.x(), indexFingerMcp.y(), 0f)).toInt())
         val data = mutableMapOf<String, Any>()
         var handedness = result.handednesses().getOrNull(0)?.getOrNull(0)?.categoryName() ?: "Right"
         if (pinkyMcp.x() < indexFingerMcp.x() && handedness == "Left" || pinkyMcp.x() > indexFingerMcp.x() && handedness == "Right") {
@@ -375,13 +375,13 @@ class CameraPreviewView @JvmOverloads constructor(
         return Math.toDegrees(acos(cosT))
     }
 
-    private fun calculate3DAngle(a: NormalizedLandmark, b: NormalizedLandmark, cx: Float, cy: Float, cz: Float): Double {
+    private fun calculate3DAngle(a: NormalizedLandmark, b: NormalizedLandmark, c: NormalizedLandmark): Double {
         val v1x = a.x() - b.x();
         val v1y = a.y() - b.y();
         val v1z = a.z() - b.z()
-        val v2x = cx - b.x();
-        val v2y = cy - b.y();
-        val v2z = cz - b.z()
+        val v2x = c.x() - b.x();
+        val v2y = c.y() - b.y();
+        val v2z = c.z() - b.z()
         val dot = v1x * v2x + v1y * v2y + v1z * v2z
         val m1 = sqrt((v1x * v1x + v1y * v1y + v1z * v1z).toDouble())
         val m2 = sqrt((v2x * v2x + v2y * v2y + v2z * v2z).toDouble())
@@ -393,16 +393,19 @@ class CameraPreviewView @JvmOverloads constructor(
     private fun calculateFingerTotalAngle(
         wrist: NormalizedLandmark, mcp: NormalizedLandmark, pip: NormalizedLandmark, dip: NormalizedLandmark, tip: NormalizedLandmark, correct: Boolean = false
     ): Double {
-        var mcpAngle = calculateYZAngle(wrist, mcp, pip)
+        var mcpAngle = calculate3DAngle(wrist, mcp, pip)
         if (correct && mcpAngle > 90 && mcpAngle < 180) {
-            mcpAngle = mcpAngle * (mcpAngle / 300 + 0.4)
+            mcpAngle = mcpAngle * (mcpAngle / 250 + 0.34)
         }
-        val pipAngle = calculateYZAngle(mcp, pip, dip)
-        var dipAngle = calculateYZAngle(pip, dip, tip)
+        var pipAngle = calculate3DAngle(mcp, pip, dip)
+        if (correct && pipAngle > 90 && pipAngle < 180) {
+            pipAngle = pipAngle * (pipAngle / 250 + 0.34)
+        }
+        var dipAngle = calculate3DAngle(pip, dip, tip)
         if (correct && dipAngle > 90 && dipAngle < 180) {
-            dipAngle = dipAngle * (dipAngle / 300 + 0.4)
+            dipAngle = dipAngle * (dipAngle / 250 + 0.34)
         }
-        return min(mcpAngle, 180.0) + min(pipAngle, 180.0) + min(dipAngle, 180.0);
+        return max(min(mcpAngle, 185.0), 85.0) + max(min(pipAngle, 185.0), 85.0) + max(min(dipAngle, 185.0), 85.0);
     }
 
     private fun requestCameraPermission() {
