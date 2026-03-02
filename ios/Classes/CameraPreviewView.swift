@@ -807,14 +807,19 @@ extension CameraPreviewView: HandLandmarkerLiveStreamDelegate {
                     x: indexFingerMcp.x,
                     y: indexFingerMcp.y,
                     z: 0,
-                    visibility:
-                    indexFingerMcp.visibility,
+                    visibility: indexFingerMcp.visibility,
                     presence: indexFingerMcp.presence
                 )
-                let angle = min(90, Int(calculate3DAngle(a: pinkyMcp, b: indexFingerMcp, c: indexFingerMcpZeroZ).rounded()))
+                var angle = Int(calculate3DAngle(a: pinkyMcp, b: indexFingerMcp, c: indexFingerMcpZeroZ).rounded())
                 var data: [String: Any] = [:]
                 var handedness = result.handedness.first?.first?.categoryName
                 if pinkyMcp.x < indexFingerMcp.x && handedness == "Left" || pinkyMcp.x > indexFingerMcp.x && handedness == "Right" {
+                    if (angle > 92 && (supinationMaxAngle ?? 0) < 88) {
+                        angle = 180 - angle
+                    }
+                    if (angle > 91) {
+                        return
+                    }
                     self.supinationAngle = angle
                     self.supinationMaxAngle = max(self.supinationMaxAngle ?? 0, angle)
                     self.pronationAngle = nil
@@ -825,6 +830,12 @@ extension CameraPreviewView: HandLandmarkerLiveStreamDelegate {
                         self.pronationMaxAngle = nil
                     }
                 } else {
+                    if (angle > 92 && (pronationMaxAngle ?? 0) < 88) {
+                        angle = 180 - angle
+                    }
+                    if (angle > 91) {
+                        return
+                    }
                     self.supinationAngle = nil
                     if let supinationMaxAngle = self.supinationMaxAngle {
                         if supinationMaxAngle > 9 {

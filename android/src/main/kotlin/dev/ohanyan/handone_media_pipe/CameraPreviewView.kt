@@ -301,15 +301,27 @@ class CameraPreviewView @JvmOverloads constructor(
     private fun processForearmSupinationAndPronation(hand: HandLandmarks, result: HandLandmarkerResult) {
         val pinkyMcp = hand[17]
         val indexFingerMcp = hand[5]
-        val angle = min(90, calculate3DAngle(pinkyMcp, indexFingerMcp, NormalizedLandmark.create(indexFingerMcp.x(), indexFingerMcp.y(), 0f)).toInt())
+        var angle = calculate3DAngle(pinkyMcp, indexFingerMcp, NormalizedLandmark.create(indexFingerMcp.x(), indexFingerMcp.y(), 0f)).toInt()
         val data = mutableMapOf<String, Any>()
         var handedness = result.handednesses().getOrNull(0)?.getOrNull(0)?.categoryName() ?: "Right"
         if (pinkyMcp.x() < indexFingerMcp.x() && handedness == "Left" || pinkyMcp.x() > indexFingerMcp.x() && handedness == "Right") {
+            if (angle > 92 && (supinationMaxAngle ?: 0) < 88) {
+                angle = 180 - angle
+            }
+            if (angle > 91) {
+                return
+            }
             supinationAngle = angle
             supinationMaxAngle = max(supinationMaxAngle ?: 0, angle)
             pronationAngle = null
             pronationMaxAngle?.let { if (it > 9) data["pronation"] = it; pronationMaxAngle = null }
         } else {
+            if (angle > 92 && (pronationMaxAngle ?: 0) < 88) {
+                angle = 180 - angle
+            }
+            if (angle > 91) {
+                return
+            }
             supinationAngle = null
             supinationMaxAngle?.let { if (it > 9) data["supination"] = it; supinationMaxAngle = null }
             pronationAngle = angle
