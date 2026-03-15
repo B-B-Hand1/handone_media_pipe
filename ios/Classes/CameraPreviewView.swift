@@ -496,6 +496,9 @@ class CameraPreviewView: UIView {
         if correct && dipAngle > 90 && dipAngle < 180 {
             dipAngle = dipAngle * (dipAngle / 250 + 0.34 )
         }
+        if mcpAngle + pipAngle < 320 {
+            dipAngle = min((mcpAngle + pipAngle) / 2, dipAngle)
+        }
         return max(min(mcpAngle, 185), 85) + max(min(pipAngle, 185), 85) + max(min(dipAngle, 185), 85)
     }
 
