@@ -5,9 +5,9 @@ PODS:
     - MediaPipeTasksVision (~> 0.10.0)
   - integration_test (0.0.1):
     - Flutter
-  - MediaPipeTasksCommon (0.10.33)
-  - MediaPipeTasksVision (0.10.33):
-    - MediaPipeTasksCommon (= 0.10.33)
+  - MediaPipeTasksCommon (0.10.21)
+  - MediaPipeTasksVision (0.10.21):
+    - MediaPipeTasksCommon (= 0.10.21)
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
@@ -31,9 +31,9 @@ SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   handone_media_pipe: b74d953ca94c70fd83aedd9ff42ea8cec16d4295
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
-  MediaPipeTasksCommon: 912f7942cc3aa057bb406af435aaea4c1959255a
-  MediaPipeTasksVision: 2df54e614f029da790f442c8b330a37c841a422f
+  MediaPipeTasksCommon: 6cfa29170d4900f04d250ad95ec058f14a741f38
+  MediaPipeTasksVision: 7b1c0f5a5820e87e9d96926f5e65d8cd3744fac2
 
-PODFILE CHECKSUM: 53a6aebc29ccee84c41f92f409fc20cd4ca011f1
+PODFILE CHECKSUM: 3ba3a73b1b12adcf321a227a745625fe0888cc82
 
 COCOAPODS: 1.16.2
