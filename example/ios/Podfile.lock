@@ -3,8 +3,6 @@ PODS:
   - handone_media_pipe (0.0.1):
     - Flutter
     - MediaPipeTasksVision (~> 0.10.0)
-  - integration_test (0.0.1):
-    - Flutter
   - MediaPipeTasksCommon (0.10.21)
   - MediaPipeTasksVision (0.10.21):
     - MediaPipeTasksCommon (= 0.10.21)
@@ -12,7 +10,6 @@ PODS:
 DEPENDENCIES:
   - Flutter (from `Flutter`)
   - handone_media_pipe (from `.symlinks/plugins/handone_media_pipe/ios`)
-  - integration_test (from `.symlinks/plugins/integration_test/ios`)
 
 SPEC REPOS:
   trunk:
@@ -24,13 +21,10 @@ EXTERNAL SOURCES:
     :path: Flutter
   handone_media_pipe:
     :path: ".symlinks/plugins/handone_media_pipe/ios"
-  integration_test:
-    :path: ".symlinks/plugins/integration_test/ios"
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  handone_media_pipe: b74d953ca94c70fd83aedd9ff42ea8cec16d4295
-  integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
+  handone_media_pipe: 1d8bca0f0c5776ba3f57fad8a037dbae6cbe7874
   MediaPipeTasksCommon: 6cfa29170d4900f04d250ad95ec058f14a741f38
   MediaPipeTasksVision: 7b1c0f5a5820e87e9d96926f5e65d8cd3744fac2
 

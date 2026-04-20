@@ -17,7 +17,7 @@ HandOne AR
   s.resources = 'Resources/*.task'
   s.dependency 'Flutter'
   s.dependency 'MediaPipeTasksVision', '~> 0.10.0'
-  s.platform = :ios, '13.0'
+  s.platform = :ios, '15.0'
 
   # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = {
