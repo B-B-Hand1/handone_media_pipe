@@ -41,7 +41,9 @@ class _HandoneMediaPipeWidgetState extends State<HandoneMediaPipeWidget> {
         }
       },
       onError: (error) {
-        print('Error receiving data: $error');
+        if (kDebugMode) {
+          print('Error receiving data: $error');
+        }
       },
     );
   }
@@ -72,9 +74,11 @@ class _HandoneMediaPipeWidgetState extends State<HandoneMediaPipeWidget> {
         creationParamsCodec: const StandardMessageCodec(),
         onPlatformViewCreated: (int id) {
           // Platform view created - arguments should be available
-          print(
-            'UiKitView created with id: $id, debug: ${widget.debug}, exerciseType: ${widget.exerciseType.name}',
-          );
+          if (kDebugMode) {
+            print(
+              'UiKitView created with id: $id, debug: ${widget.debug}, exerciseType: ${widget.exerciseType.name}',
+            );
+          }
         },
       );
     }

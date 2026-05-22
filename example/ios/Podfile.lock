@@ -24,7 +24,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  handone_media_pipe: 1d8bca0f0c5776ba3f57fad8a037dbae6cbe7874
+  handone_media_pipe: d2914cc690d01bb60d0eed18011f40b2b0b3a086
   MediaPipeTasksCommon: 6cfa29170d4900f04d250ad95ec058f14a741f38
   MediaPipeTasksVision: 7b1c0f5a5820e87e9d96926f5e65d8cd3744fac2
 

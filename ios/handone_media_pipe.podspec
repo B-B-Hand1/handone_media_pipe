@@ -13,8 +13,11 @@ HandOne AR
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'Your Company' => 'email@example.com' }
   s.source           = { :path => '.' }
-  s.source_files = 'Classes/**/*'
-  s.resources = 'Resources/*.task'
+  s.source_files = 'handone_media_pipe/Sources/handone_media_pipe/**/*.swift'
+  s.resource_bundles = {
+    'handone_media_pipe_privacy' => ['handone_media_pipe/Sources/handone_media_pipe/Resources/PrivacyInfo.xcprivacy']
+  }
+  s.resources = 'handone_media_pipe/Sources/handone_media_pipe/Resources/*.task'
   s.dependency 'Flutter'
   s.dependency 'MediaPipeTasksVision', '~> 0.10.0'
   s.platform = :ios, '15.0'
@@ -27,10 +30,4 @@ HandOne AR
   }
   s.swift_version = '5.0'
   s.static_framework = true
-
-  # If your plugin requires a privacy manifest, for example if it uses any
-  # required reason APIs, update the PrivacyInfo.xcprivacy file to describe your
-  # plugin's privacy impact, and then uncomment this line. For more information,
-  # see https://developer.apple.com/documentation/bundleresources/privacy_manifest_files
-  # s.resource_bundles = {'handone_media_pipe_privacy' => ['Resources/PrivacyInfo.xcprivacy']}
 end
