@@ -128,6 +128,13 @@ class CameraPreviewView: UIView {
     // MARK: - Model Loading Helper
 
     private func findModelFile(name: String, type: String = "task") -> String? {
+        #if SWIFT_PACKAGE
+        if let path = Bundle.module.path(forResource: name, ofType: type) {
+            print("Found \(name) model in SPM module bundle")
+            return path
+        }
+        #endif
+
         // Try resource bundle first (created by resource_bundles in podspec)
         if let resourceBundlePath = Bundle.main.path(forResource: "handone_media_pipe", ofType: "bundle"),
            let resourceBundle = Bundle(path: resourceBundlePath),

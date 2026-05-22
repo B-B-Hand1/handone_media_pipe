@@ -1,0 +1,13 @@
+{
+  "pins" : [
+    {
+      "identity" : "swifttasksvision",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/paescebu/SwiftTasksVision.git",
+      "state" : {
+        "revision" : "2cba94cf7d38ace98e32dc08d1de7a6895f05057"
+      }
+    }
+  ],
+  "version" : 2
+}
